@@ -1,0 +1,86 @@
+# Azure Pipelines equivalent of .github/workflows/{tests,security}.yml
+trigger:
+  branches:
+    include:
+      - "*"
+
+pr:
+  branches:
+    include:
+      - "*"
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  PYTHON_VERSION: "3.12"
+  GITLEAKS_VERSION: "8.18.4"
+
+stages:
+  - stage: Test
+    jobs:
+      - job: pytest
+        strategy:
+          matrix:
+            py311:
+              pythonVersion: "3.11"
+            py312:
+              pythonVersion: "3.12"
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+          - script: pip install -r requirements.txt
+            displayName: Install dependencies
+          - script: pytest -v --junitxml=test-results.xml
+            displayName: Run pytest
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: test-results.xml
+              testRunTitle: pytest $(pythonVersion)
+
+  - stage: Security
+    dependsOn: []
+    jobs:
+      - job: bandit
+        displayName: SAST (Bandit)
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+          - script: pip install bandit
+            displayName: Install Bandit
+          - script: bandit -r src dashboard data -ll -f txt
+            displayName: Run Bandit (fail on medium+ severity)
+          - script: bandit -r src dashboard data -f json -o $(Build.ArtifactStagingDirectory)/bandit-report.json || true
+            displayName: Bandit JSON report
+            condition: always()
+          - publish: $(Build.ArtifactStagingDirectory)/bandit-report.json
+            artifact: bandit-report
+            condition: always()
+
+      - job: pip_audit
+        displayName: Dependency audit (pip-audit)
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+          - script: pip install pip-audit
+            displayName: Install pip-audit
+          - script: pip-audit -r requirements.txt --desc
+            displayName: Audit requirements.txt for known CVEs
+
+      - job: secrets
+        displayName: Secret scan (Gitleaks)
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - script: |
+              curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v$(GITLEAKS_VERSION)/gitleaks_$(GITLEAKS_VERSION)_linux_x64.tar.gz" \
+                | tar -xz gitleaks
+              sudo mv gitleaks /usr/local/bin/
+            displayName: Install Gitleaks
+          - script: gitleaks detect --source . --redact --verbose
+            displayName: Scan full git history
