@@ -1,5 +1,8 @@
 # AI SOC Copilot
 
+[![Tests](https://github.com/Hocinek/ai-soc-copilot/actions/workflows/tests.yml/badge.svg)](https://github.com/Hocinek/ai-soc-copilot/actions/workflows/tests.yml)
+[![Security](https://github.com/Hocinek/ai-soc-copilot/actions/workflows/security.yml/badge.svg)](https://github.com/Hocinek/ai-soc-copilot/actions/workflows/security.yml)
+
 A small end-to-end pipeline that detects anomalous authentication behavior
 with unsupervised ML, maps it to MITRE ATT&CK deterministically, and uses an
 LLM to turn each flagged event into an analyst-readable triage note —
@@ -102,6 +105,17 @@ LLM triage works without any API key (deterministic offline fallback in
 `.env.example` to `.env` and set `ANTHROPIC_API_KEY`.
 
 Run tests: `pytest tests/`
+
+## CI/CD and security scanning
+
+Every push runs two pipelines, defined both for GitHub Actions and Azure Pipelines:
+
+| Check | Tool | GitHub Actions | Azure Pipelines |
+|---|---|---|---|
+| Unit tests (Python 3.11 / 3.12) | pytest | `.github/workflows/tests.yml` | `azure-pipelines.yml` – stage `Test` |
+| SAST | Bandit (fails on medium+ severity) | `.github/workflows/security.yml` | stage `Security` |
+| Vulnerable dependencies | pip-audit | `.github/workflows/security.yml` | stage `Security` |
+| Leaked secrets (full git history) | Gitleaks | `.github/workflows/security.yml` | stage `Security` |
 
 ## Known limitations
 
