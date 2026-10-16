@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI SOC Copilot</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0B0E14;
+    --panel: #131722;
+    --panel-border: #212637;
+    --text: #E6E9EF;
+    --text-muted: #8B93A7;
+    --text-dim: #5B6478;
+    --critical: #E5484D;
+    --high: #F2A93B;
+    --medium: #4FA8E0;
+    --low: #6B9080;
+    --accent: #7C9CF2;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .mono { font-family: 'IBM Plex Mono', 'SF Mono', monospace; }
+
+  header {
+    padding: 28px 40px 20px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .stats-bar {
+    display: flex;
+    gap: 28px;
+    padding: 18px 40px;
+    border-bottom: 1px solid var(--panel-border);
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat .value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  .stat .label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .model-compare {
+    margin-left: auto;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .model-compare .chip {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .model-compare .chip.best { border-color: var(--accent); color: var(--accent); }
+
+  main {
+    padding: 24px 40px 60px;
+    max-width: 980px;
+  }
+
+  .queue-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 14px;
+  }
+
+  .alert-card {
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeIn 0.4s ease forwards;
+  }
+
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  .sev-bar { width: 4px; flex-shrink: 0; }
+  .sev-bar.critical { background: var(--critical); }
+  .sev-bar.high { background: var(--high); }
+  .sev-bar.medium { background: var(--medium); }
+  .sev-bar.low { background: var(--low); }
+
+  .alert-body { padding: 14px 18px; flex: 1; min-width: 0; }
+
+  .alert-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+  .badge.critical { background: rgba(229,72,77,0.15); color: var(--critical); }
+  .badge.high { background: rgba(242,169,59,0.15); color: var(--high); }
+  .badge.medium { background: rgba(79,168,224,0.15); color: var(--medium); }
+  .badge.low { background: rgba(107,144,128,0.15); color: var(--low); }
+
+  .mitre-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(124,156,242,0.08);
+    border: 1px solid rgba(124,156,242,0.2);
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+
+  .meta {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .summary { font-size: 13.5px; line-height: 1.5; margin: 0 0 8px; color: var(--text); }
+
+  .action {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    border-left: 2px solid var(--panel-border);
+    padding-left: 10px;
+    margin-bottom: 8px;
+  }
+  .action b { color: var(--text); font-weight: 600; }
+
+  .details {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-dim);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .gt-tag {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    border: 1px dashed var(--panel-border);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .loading, .empty {
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 40px 0;
+  }
+
+  footer {
+    padding: 20px 40px 40px;
+    color: var(--text-dim);
+    font-size: 11px;
+    max-width: 980px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AI SOC Copilot</h1>
+  <p>ML anomaly detection + LLM-assisted triage on authentication logs · demo pipeline, synthetic dataset</p>
+</header>
+
+<div class="stats-bar" id="stats-bar">
+  <div class="loading">Loading…</div>
+</div>
+
+<main>
+  <p class="queue-label">Alert queue — ranked by anomaly score</p>
+  <div id="queue"><div class="loading">Loading alerts…</div></div>
+</main>
+
+<footer>
+  Synthetic dataset generated for demonstration (see data/generate_logs.py). Ground-truth labels shown
+  are dataset labels, not model output — kept visible here for transparency, never given to the detectors.
+</footer>
+
+<script>
+const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+
+async function loadEval() {
+  const bar = document.getElementById('stats-bar');
+  try {
+    const res = await fetch('/api/eval');
+    const data = await res.json();
+    if (data.error) { bar.innerHTML = `<div class="empty">${data.error}</div>`; return; }
+
+    const iso = data.isolation_forest, rules = data.rule_based_baseline, hybrid = data.hybrid_union;
+    const best = Math.max(iso.f1, rules.f1, hybrid.f1);
+
+    bar.innerHTML = `
+      <div class="stat"><div class="value">${data.n_events}</div><div class="label">events analyzed</div></div>
+      <div class="stat"><div class="value">${data.n_labeled_anomalies}</div><div class="label">known anomalies</div></div>
+      <div class="model-compare">
+        <span>Detector F1</span>
+        <span class="chip ${rules.f1===best?'best':''}">rules ${rules.f1}</span>
+        <span class="chip ${iso.f1===best?'best':''}">isolation forest ${iso.f1}</span>
+        <span class="chip ${hybrid.f1===best?'best':''}">hybrid ${hybrid.f1}</span>
+      </div>
+    `;
+  } catch (e) {
+    bar.innerHTML = '<div class="empty">Could not load eval report.</div>';
+  }
+}
+
+async function loadAlerts() {
+  const queue = document.getElementById('queue');
+  try {
+    const res = await fetch('/api/alerts');
+    const data = await res.json();
+    if (data.error) { queue.innerHTML = `<div class="empty">${data.error}</div>`; return; }
+    if (!data.length) { queue.innerHTML = '<div class="empty">No alerts above threshold.</div>'; return; }
+
+    data.sort((a, b) => (SEV_ORDER[a.triage.severity] - SEV_ORDER[b.triage.severity]) || (b.anomaly_score - a.anomaly_score));
+
+    queue.innerHTML = data.map((a, i) => {
+      const sev = a.triage.severity;
+      const mitre = a.mitre.map(m => `<span class="mitre-tag">${m.technique_id || '—'} ${m.technique_name}</span>`).join(' ');
+      return `
+        <div class="alert-card" style="animation-delay:${Math.min(i*30,300)}ms">
+          <div class="sev-bar ${sev}"></div>
+          <div class="alert-body">
+            <div class="alert-top">
+              <span class="badge ${sev}">${sev}</span>
+              ${mitre}
+              <span class="gt-tag">label: ${a.ground_truth_anomaly_type}</span>
+              <span class="meta">score ${a.anomaly_score} · ${a.timestamp}</span>
+            </div>
+            <p class="summary">${a.triage.summary}</p>
+            <div class="action"><b>Recommended:</b> ${a.triage.recommended_action}</div>
+            <div class="details">
+              <span>user: ${a.src_user}</span>
+              <span>src_ip: ${a.src_ip}</span>
+              <span>dst_host: ${a.dst_host}</span>
+              <span>triage source: ${a.triage.source}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    queue.innerHTML = '<div class="empty">Could not load alerts.</div>';
+  }
+}
+
+loadEval();
+loadAlerts();
+</script>
+
+</body>
+</html>
